@@ -1,25 +1,40 @@
 /**
- * Digest generation module for TextDigest.
+ * Digest generation module for TextDigest v2.1.
  * 
  * @semantic-role digest-generation
- * @purpose Build final Markdown output from summaries
+ * @purpose Build final Markdown output from summaries with v2.1 enhancements
+ * @version 2.1
  */
 
 import { writeFile } from 'fs/promises';
-import { Digest, FileSummary } from './types.js';
+import { Digest, FileSummary, LLMConclusions, AnalyzedFact } from './types.js';
 import { createLogger } from './config.js';
+import { formatFactsForDigest, getFactStatistics } from './fact-analyzer.js';
 
 const logger = createLogger('digest-builder');
 
 /**
- * Generates digest structure from file summaries.
+ * Generates digest structure from file summaries with v2.1 features.
  * 
  * @semantic-role data-aggregation
  * @input summaries: FileSummary[] - All generated summaries
- * @output Digest - Structured digest object
+ * @input processingTimeMs: number - Total processing time
+ * @input factAnalysis: Optional analyzed facts
+ * @input conclusions: Optional LLM conclusions
+ * @output Digest - Structured digest object with v2.1 sections
+ * @version 2.1
  */
-export function generateDigest(summaries: FileSummary[], processingTimeMs: number): Digest {
-  logger.info('digest_generation_started', { summaryCount: summaries.length });
+export function generateDigest(
+  summaries: FileSummary[], 
+  processingTimeMs: number,
+  factAnalysis?: { common: AnalyzedFact[]; unusual: AnalyzedFact[]; long: AnalyzedFact[] },
+  conclusions?: LLMConclusions | null
+): Digest {
+  logger.info('digest_generation_v2.1_started', { 
+    summaryCount: summaries.length,
+    hasFactAnalysis: !!factAnalysis,
+    hasConclusions: !!conclusions
+  });
   
   // Group summaries by file type
   const fileSummaries = {
@@ -46,7 +61,10 @@ export function generateDigest(summaries: FileSummary[], processingTimeMs: numbe
   // Build source index (all unique file paths)
   const sourceIndex = Array.from(new Set(summaries.map(s => s.file.path))).sort();
   
-  const digest: Digest = {
+  const digest: Digest & {
+    factAnalysis?: typeof factAnalysis;
+    conclusions?: typeof conclusions;
+  } = {
     executiveSummary,
     fileSummaries,
     statistics: {
@@ -61,28 +79,39 @@ export function generateDigest(summaries: FileSummary[], processingTimeMs: numbe
       processingTime: Math.round(processingTimeMs / 1000),
       model: summaries[0]?.model || 'unknown',
     },
+    factAnalysis,
+    conclusions: conclusions || undefined
   };
   
-  logger.info('digest_generation_completed', {
+  logger.info('digest_generation_v2.1_completed', {
     executiveSummaryCount: executiveSummary.length,
     totalFiles,
     totalSize,
+    commonFacts: factAnalysis?.common.length || 0,
+    unusualFacts: factAnalysis?.unusual.length || 0,
+    longFacts: factAnalysis?.long.length || 0,
+    conclusions: conclusions?.conclusions.length || 0,
+    recommendations: conclusions?.recommendations.length || 0
   });
   
-  return digest;
+  return digest as Digest;
 }
 
 /**
- * Renders digest as Markdown.
+ * Renders digest as Markdown with v2.1 enhancements.
  * 
  * @semantic-role markdown-generation
- * @output string - Markdown content
+ * @output string - Markdown content with v2.1 sections
+ * @version 2.1
  */
-export function renderDigestMarkdown(digest: Digest): string {
+export function renderDigestMarkdown(digest: Digest & {
+  factAnalysis?: { common: AnalyzedFact[]; unusual: AnalyzedFact[]; long: AnalyzedFact[] };
+  conclusions?: LLMConclusions;
+}): string {
   const md: string[] = [];
   
   // Header
-  md.push('# Text File Digest\n');
+  md.push('# Text File Digest v2.1\n');
   md.push(`**Generated**: ${digest.metadata.generatedAt.toISOString()}`);
   md.push(`**Processing Time**: ${digest.metadata.processingTime}s`);
   md.push(`**Model**: ${digest.metadata.model}\n`);
@@ -96,8 +125,81 @@ export function renderDigestMarkdown(digest: Digest): string {
   });
   md.push('\n---\n');
   
+  // v2.1: LLM Conclusions & Recommendations
+  if (digest.conclusions) {
+    md.push('## 💡 Conclusions & Recommendations\n');
+    
+    if (digest.conclusions.conclusions.length > 0) {
+      md.push('### High-Level Conclusions\n');
+      digest.conclusions.conclusions.forEach((conclusion, i) => {
+        md.push(`${i + 1}. ${conclusion}`);
+      });
+      md.push('');
+    }
+    
+    if (digest.conclusions.recommendations.length > 0) {
+      md.push('### Actionable Recommendations\n');
+      digest.conclusions.recommendations.forEach((rec, i) => {
+        md.push(`${i + 1}. ${rec}`);
+      });
+      md.push('');
+    }
+    
+    if (digest.conclusions.evidence.length > 0) {
+      md.push('### Supporting Evidence\n');
+      digest.conclusions.evidence.slice(0, 5).forEach(ev => {
+        md.push(`- ${ev}`);
+      });
+      md.push('');
+    }
+    
+    md.push(`*Confidence: ${(digest.conclusions.confidence * 100).toFixed(1)}%*\n`);
+    md.push('---\n');
+  }
+  
+  // v2.1: Advanced Fact Analysis
+  if (digest.factAnalysis) {
+    md.push('## 🔍 Advanced Fact Analysis\n');
+    
+    if (digest.factAnalysis.common.length > 0) {
+      md.push('### Most Common Facts\n');
+      md.push('Facts that appear frequently across multiple files:\n');
+      formatFactsForDigest(digest.factAnalysis.common.slice(0, 5)).forEach(fact => {
+        md.push(fact);
+      });
+      md.push('');
+    }
+    
+    if (digest.factAnalysis.unusual.length > 0) {
+      md.push('### Most Unusual Facts\n');
+      md.push('Rare but significant findings:\n');
+      formatFactsForDigest(digest.factAnalysis.unusual.slice(0, 5)).forEach(fact => {
+        md.push(fact);
+      });
+      md.push('');
+    }
+    
+    if (digest.factAnalysis.long.length > 0) {
+      md.push('### Long Facts (>50 words)\n');
+      md.push('Detailed findings requiring attention:\n');
+      formatFactsForDigest(digest.factAnalysis.long.slice(0, 3)).forEach(fact => {
+        md.push(fact);
+      });
+      md.push('');
+    }
+    
+    // Fact statistics
+    const factStats = getFactStatistics(digest.factAnalysis);
+    md.push('### Fact Statistics\n');
+    Object.entries(factStats).forEach(([key, value]) => {
+      const label = key.replace(/([A-Z])/g, ' $1').trim();
+      md.push(`- **${label}**: ${value}`);
+    });
+    md.push('\n---\n');
+  }
+  
   // Statistics
-  md.push('## 📊 Statistics\n');
+  md.push('## 📊 File Statistics\n');
   md.push(`- **Total Files**: ${digest.statistics.totalFiles}`);
   md.push(`- **Total Size**: ${formatBytes(digest.statistics.totalSize)}`);
   md.push(`- **Date Range**: ${formatDate(digest.statistics.dateRange[0])} to ${formatDate(digest.statistics.dateRange[1])}`);
@@ -135,6 +237,9 @@ export function renderDigestMarkdown(digest: Digest): string {
   digest.sourceIndex.forEach(path => {
     md.push(`- [${path}](${path})`);
   });
+  
+  md.push('\n---\n');
+  md.push('*Generated by TextDigest v2.1 - https://github.com/abezr/files-summary*');
   
   return md.join('\n');
 }

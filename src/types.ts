@@ -142,3 +142,108 @@ export interface Logger {
   warn(event: string, data?: Record<string, any>): void;
   error(event: string, data?: Record<string, any>): void;
 }
+
+/**
+ * v2.1: Represents a fact with frequency and rarity analysis.
+ * 
+ * @semantic-role data-structure
+ * @usage Advanced fact analysis
+ * @version 2.1
+ */
+export interface AnalyzedFact {
+  text: string;
+  sources: string[];        // File paths where this fact appears
+  frequency: number;        // Occurrence count
+  rarityScore: number;      // TF-IDF score (higher = more unusual)
+  wordCount: number;        // Length in words
+  category: 'common' | 'unusual' | 'long';
+}
+
+/**
+ * v2.1: Represents law content filtering result.
+ * 
+ * @semantic-role data-structure
+ * @usage Law content filtering
+ * @version 2.1
+ * @validation
+ * - precision: >= 0.90
+ * - recall: >= 0.85
+ */
+export interface LawFilterResult {
+  isLegalContent: boolean;
+  confidence: number;       // 0-1 score
+  matchedTerms: string[];   // Legal terms found
+  caseCitations: string[];  // e.g., "Brown v. Board, 347 U.S. 483"
+  statutes: string[];       // e.g., "18 U.S.C. § 1001"
+}
+
+/**
+ * v2.1: Represents a knowledge graph node.
+ * 
+ * @semantic-role data-structure
+ * @usage Knowledge graph construction
+ * @version 2.1
+ */
+export interface GraphNode {
+  id: string;               // Unique identifier
+  type: 'entity' | 'fact' | 'concept';
+  label: string;
+  sources: string[];        // File paths
+  properties: Record<string, any>;
+}
+
+/**
+ * v2.1: Represents a knowledge graph edge.
+ * 
+ * @semantic-role data-structure
+ * @usage Knowledge graph construction
+ * @version 2.1
+ */
+export interface GraphEdge {
+  source: string;           // Node ID
+  target: string;           // Node ID
+  type: string;             // Relationship type
+  weight: number;           // Strength (0-1)
+}
+
+/**
+ * v2.1: Represents a knowledge graph.
+ * 
+ * @semantic-role data-structure
+ * @usage Knowledge graph mode for large batches
+ * @version 2.1
+ */
+export interface KnowledgeGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  clusters: EntityCluster[];
+}
+
+/**
+ * v2.1: Represents an entity cluster.
+ * 
+ * @semantic-role data-structure
+ * @usage Semantic clustering for knowledge graph
+ * @version 2.1
+ */
+export interface EntityCluster {
+  id: string;
+  label: string;            // Cluster theme
+  entities: GraphNode[];
+  centroid: number[];       // Embedding centroid
+  coherenceScore: number;   // 0-1 score
+}
+
+/**
+ * v2.1: Represents LLM-generated conclusions.
+ * 
+ * @semantic-role data-structure
+ * @usage LLM conclusions and recommendations
+ * @version 2.1
+ */
+export interface LLMConclusions {
+  conclusions: string[];    // 3-5 high-level conclusions
+  recommendations: string[]; // 3-5 actionable recommendations
+  evidence: string[];       // Supporting facts with sources
+  confidence: number;       // 0-1 score
+}

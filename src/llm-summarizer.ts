@@ -8,7 +8,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
-import { Batch, FileContent, FileSummary } from './types.js';
+import { Batch, FileContent, FileSummary, LLMConclusions } from './types.js';
 import { CONFIG, loadEnvConfig, createLogger } from './config.js';
 
 const logger = createLogger('llm-summarizer');
@@ -249,4 +249,157 @@ function calculateConfidence(summary: any): number {
   
   const linkedItems = allItems.filter((item: string) => /\[source:/.test(item));
   return linkedItems.length / allItems.length;
+}
+
+/**
+ * v2.1: Generate LLM conclusions and recommendations.
+ * 
+ * @semantic-role llm-conclusions
+ * @version 2.1
+ * @input All summaries and analyzed facts
+ * @output LLMConclusions with 3-5 conclusions and recommendations
+ * 
+ * @algorithm
+ * 1. Aggregate all facts, insights, and patterns
+ * 2. Prompt LLM to generate high-level conclusions
+ * 3. Generate actionable recommendations
+ * 4. Include evidence with source citations
+ * 5. Calculate confidence score
+ * 
+ * @example
+ * ```typescript
+ * const conclusions = await generateConclusions(summaries, facts, logger);
+ * console.log(conclusions.conclusions);
+ * console.log(conclusions.recommendations);
+ * ```
+ */
+export async function generateConclusions(
+  summaries: FileSummary[],
+  facts: { common: any[]; unusual: any[]; long: any[] },
+  logger?: any
+): Promise<LLMConclusions> {
+  initializeClients();
+  
+  // Build prompt with all context
+  const allFacts = summaries.flatMap(s => s.keyFacts).slice(0, 50);
+  const allInsights = summaries.flatMap(s => s.insights).slice(0, 30);
+  const commonFactsText = facts.common.slice(0, 10).map(f => f.text).join('\n');
+  const unusualFactsText = facts.unusual.slice(0, 10).map(f => f.text).join('\n');
+  
+  const prompt = `You are a strategic analyst reviewing a comprehensive digest of ${summaries.length} files.
+
+# Context:
+
+## Most Common Facts (mentioned multiple times):
+${commonFactsText}
+
+## Most Unusual Facts (rare but significant):
+${unusualFactsText}
+
+## All Key Facts:
+${allFacts.slice(0, 30).join('\n')}
+
+## All Insights:
+${allInsights.join('\n')}
+
+# Your Task:
+
+Generate a strategic analysis with:
+
+1. **Conclusions** (3-5 high-level conclusions):
+   - Synthesize patterns across all files
+   - Identify systemic issues or trends
+   - Connect disparate insights
+   - Each conclusion should be evidence-based
+
+2. **Recommendations** (3-5 actionable recommendations):
+   - Specific actions based on conclusions
+   - Prioritized by impact
+   - Actionable and concrete
+   - Each with supporting evidence
+
+3. **Evidence** (supporting facts):
+   - Key facts that support your conclusions
+   - Include [source: ...] tags from original facts
+
+# Output Format (JSON):
+{
+  "conclusions": [
+    "High-level conclusion 1 based on patterns X, Y, Z",
+    "Strategic insight 2 connecting facts A, B, C"
+  ],
+  "recommendations": [
+    "Recommendation 1: Specific action based on conclusion X",
+    "Recommendation 2: Priority action addressing issue Y"
+  ],
+  "evidence": [
+    "Supporting fact 1 [source: file.txt:42]",
+    "Supporting fact 2 [source: file2.log:105]"
+  ]
+}
+
+# Rules:
+- Be strategic, not tactical
+- Connect dots across files
+- Prioritize actionable insights
+- Cite evidence with [source: ...] tags
+- Output ONLY valid JSON`;
+
+  try {
+    let response: any;
+    
+    if (googleAI) {
+      const model = googleAI.getGenerativeModel({ model: CONFIG.LLM.primary.model });
+      const result = await model.generateContent(prompt);
+      const text = (await result.response).text();
+      const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      response = JSON.parse(jsonText);
+    } else if (openAI) {
+      const result = await openAI.chat.completions.create({
+        model: CONFIG.LLM.fallback.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.4,
+        response_format: { type: 'json_object' }
+      });
+      response = JSON.parse(result.choices[0].message.content!);
+    } else {
+      throw new Error('No API keys configured');
+    }
+    
+    // Calculate confidence based on evidence citations
+    const evidenceWithSources = response.evidence?.filter((e: string) => /\[source:/.test(e)) || [];
+    const confidence = response.evidence?.length > 0 
+      ? evidenceWithSources.length / response.evidence.length 
+      : 0.5;
+    
+    if (logger) {
+      logger.info('llm_conclusions_generated', {
+        conclusions: response.conclusions?.length || 0,
+        recommendations: response.recommendations?.length || 0,
+        evidence: response.evidence?.length || 0,
+        confidence
+      });
+    }
+    
+    return {
+      conclusions: response.conclusions || [],
+      recommendations: response.recommendations || [],
+      evidence: response.evidence || [],
+      confidence
+    };
+  } catch (error) {
+    if (logger) {
+      logger.error('llm_conclusions_failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+    
+    // Fallback to empty conclusions
+    return {
+      conclusions: [],
+      recommendations: [],
+      evidence: [],
+      confidence: 0
+    };
+  }
 }
