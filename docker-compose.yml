@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  textdigest:
+    build: .
+    image: textdigest:latest
+    container_name: textdigest-cli
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./data:/data:ro              # Mount input folder (read-only)
+      - ./output:/output              # Mount output folder
+    command: ["--folder", "/data", "--days", "6", "--output", "/output/digest.md"]
