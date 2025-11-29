@@ -9,6 +9,25 @@
 
 ---
 
+## 📖 Table of Contents
+
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Usage](#-usage)
+- [Output Format](#-output-format)
+- [Quality Metrics](#-quality-metrics)
+- [Architecture](#️-architecture)
+- [LLM Models](#-llm-models)
+- [Configuration](#️-configuration)
+- [Testing](#-testing)
+- [Performance](#-performance)
+- [Development](#️-development)
+- [Documentation](#-documentation)
+- [License](#-license)
+- [Links](#-links)
+
+---
+
 ## 🎯 Features
 
 ### Core Features (v1.0)
@@ -34,8 +53,8 @@
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/abezr/pdf-summarize.git
-cd pdf-summarize
+git clone https://github.com/abezr/files-summary.git
+cd files-summary
 
 # 2. Set API keys
 export GOOGLE_API_KEY=your_key_here
@@ -209,33 +228,62 @@ Example output:
 
 ## 🏗️ Architecture
 
-TextDigest follows a **minimalist design** with strict constraints:
+TextDigest v2.1 features an extensible architecture with adaptive processing:
 
-- **Max 8 TypeScript files** (excluding tests)
-- **Max 800 lines** of core logic
-- **Max 5 dependencies**
-- **Zero database** (in-memory processing only)
+### v2.1 Architecture
+- **14 TypeScript modules** (8 core + 6 v2.1 enhancements)
+- **~2,200 lines** of production code
+- **9 dependencies** (5 core + 4 for advanced features)
+- **Zero database** (in-memory processing)
+- **Adaptive Processing**: Auto-switches to Knowledge Graph mode for large batches
 
 ### Data Flow
 
 ```
-[Folder] → [File Discovery] → [Content Extraction] → 
-[Batch Creation] → [LLM Summarization] → [Digest Generation] → 
-[Quality Evaluation] → [digest.md]
+[Folder] → [File Discovery] → [Content Extraction] → [Law Filtering] →
+[Adaptive: Standard/Knowledge Graph] → [Batch Processing] → 
+[LLM Summarization] → [Fact Analysis] → [Conclusions] →
+[Digest Generation] → [Quality Evaluation] → [digest.md]
 ```
 
-### Core Modules
+### Core Modules (v1.0)
 
 | Module | Purpose | Lines |
 |--------|---------|-------|
-| `types.ts` | Type definitions | ~80 |
-| `config.ts` | Configuration & logging | ~50 |
-| `file-discovery.ts` | File scanning | ~120 |
-| `content-processor.ts` | Batch processing | ~180 |
-| `llm-summarizer.ts` | LLM integration | ~200 |
-| `digest-builder.ts` | Markdown generation | ~100 |
-| `evaluator.ts` | Quality metrics | ~150 |
-| `cli.ts` | CLI interface | ~150 |
+| `types.ts` | Type definitions | ~144 |
+| `config.ts` | Configuration & logging | ~107 |
+| `file-discovery.ts` | File scanning | ~130 |
+| `content-processor.ts` | Batch processing | ~190 |
+| `llm-summarizer.ts` | LLM integration | ~252 |
+| `digest-builder.ts` | Markdown generation | ~220 |
+| `evaluator.ts` | Quality metrics | ~161 |
+| `cli.ts` | CLI interface | ~154 |
+
+### v2.1 Enhancement Modules
+
+| Module | Purpose | Lines |
+|--------|---------|-------|
+| `content-filter.ts` | Law content filtering | ~241 |
+| `fact-analyzer.ts` | Advanced fact analysis | ~195 |
+| `graph-builder.ts` | Knowledge graph | ~198 |
+| `semantic-clustering.ts` | Entity clustering | ~187 |
+| `context-retriever.ts` | Context retrieval | ~144 |
+
+### Architecture Diagrams
+
+Detailed architecture documentation with Mermaid diagrams:
+
+- 📐 [**Context Diagram**](docs/diagrams/01-context-diagram.md) - System overview and external dependencies
+- 🏗️ [**Container Diagram**](docs/diagrams/02-container-diagram.md) - High-level architecture and modules
+- 🔧 [**Component Diagram**](docs/diagrams/03-component-diagram.md) - Internal component structure
+- 🔄 [**Sequence Diagram**](docs/diagrams/04-sequence-diagram.md) - Processing flow and interactions
+- 🚀 [**Deployment Diagram**](docs/diagrams/05-deployment-diagram.md) - Deployment options and configurations
+
+### Additional Documentation
+
+- 📚 [**Architecture Guide**](docs/architecture/ARCHITECTURE.md) - Comprehensive architecture documentation
+- 📖 [**API Reference**](docs/api/API_REFERENCE.md) - Complete API documentation
+- 🚀 [**Deployment Guide**](docs/guides/DEPLOYMENT.md) - Production deployment instructions
 
 ---
 
@@ -345,6 +393,31 @@ All functions include semantic markup for LLM maintainability:
 
 ---
 
+## 📚 Documentation
+
+### Quick Reference
+- 🚀 [**Quick Start Guide**](docs/QUICKSTART.md) - Get started in 5 minutes
+- 📋 [**Version History**](docs/VERSION.md) - Detailed changelog and release notes
+- 📦 [**Implementation Summary**](docs/IMPLEMENTATION_SUMMARY.md) - Technical implementation details
+- 🤝 [**Handoff Guide**](docs/HANDOFF.md) - Project handoff and v2.1 roadmap
+
+### Architecture & Design
+- 📐 [**C4 Diagrams**](docs/diagrams/) - Visual architecture documentation
+  - [Context Diagram](docs/diagrams/01-context-diagram.md)
+  - [Container Diagram](docs/diagrams/02-container-diagram.md)
+  - [Component Diagram](docs/diagrams/03-component-diagram.md)
+  - [Sequence Diagram](docs/diagrams/04-sequence-diagram.md)
+  - [Deployment Diagram](docs/diagrams/05-deployment-diagram.md)
+- 🏗️ [**Architecture Guide**](docs/architecture/ARCHITECTURE.md) - Comprehensive architecture documentation
+- 📖 [**API Reference**](docs/api/API_REFERENCE.md) - Complete API documentation
+
+### Deployment & Operations
+- 🚀 [**Deployment Guide**](docs/guides/DEPLOYMENT.md) - Production deployment instructions
+- 🐳 **Docker**: Use `docker-compose up` for one-command deployment
+- ☁️ **Cloud**: Supports AWS, GCP, Azure deployments
+
+---
+
 ## 📝 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
@@ -361,11 +434,16 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🔗 Links
 
-- **Repository**: https://github.com/abezr/pdf-summarize
-- **Issues**: https://github.com/abezr/pdf-summarize/issues
+- **Repository**: https://github.com/abezr/files-summary
+- **Issues**: https://github.com/abezr/files-summary/issues
+- **Releases**: https://github.com/abezr/files-summary/releases
+- **Latest Release**: [v2.1.0](https://github.com/abezr/files-summary/releases/tag/v2.1.0)
+- **Documentation**: [docs/](docs/)
 - **Google Gemini**: https://ai.google.dev/models/gemini
 - **OpenAI Models**: https://platform.openai.com/docs/models
 
 ---
 
 **Built with ❤️ for efficient text file analysis**
+
+**TextDigest v2.1** - From text files to actionable insights with LLM-powered intelligence.
