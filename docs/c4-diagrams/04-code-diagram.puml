@@ -1,0 +1,156 @@
+@startuml C4_Code
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Code Diagram - Core Data Flow
+
+package "Types (types.ts)" {
+    class FileMetadata {
+        +path: string
+        +size: number
+        +modifiedAt: Date
+        +type: 'txt' | 'md' | 'log'
+    }
+    
+    class FileContent {
+        +metadata: FileMetadata
+        +content: string
+        +lineCount: number
+        +wordCount: number
+        +encoding: 'utf8' | 'latin1'
+        +error?: string
+    }
+    
+    class Batch<T> {
+        +id: string
+        +items: T[]
+        +totalSize: number
+        +createdAt: Date
+    }
+    
+    class FileSummary {
+        +file: FileMetadata
+        +summary: string
+        +keyFacts: string[]
+        +insights: string[]
+        +statistics: Record<string, any>
+        +sources: string[]
+        +model: string
+        +tokens: number
+        +confidence: number
+    }
+    
+    class Digest {
+        +executiveSummary: string[]
+        +fileSummaries: GroupedSummaries
+        +statistics: Statistics
+        +sourceIndex: string[]
+        +metadata: Metadata
+    }
+    
+    class EvaluationResult {
+        +scores: Scores
+        +thresholds: Thresholds
+        +passed: boolean
+        +issues: string[]
+        +recommendations: string[]
+    }
+}
+
+package "File Discovery (file-discovery.ts)" {
+    class FileDiscovery {
+        +discoverFiles(folder, days): Promise<FileMetadata[]>
+    }
+}
+
+package "Content Processor (content-processor.ts)" {
+    class ContentProcessor {
+        +readFileContent(file): Promise<FileContent>
+        +extractContents(files): Promise<FileContent[]>
+        +createBatches(contents, size): Batch<FileContent>[]
+        +processBatchesInParallel(batches, processor): Promise<FileSummary[]>
+    }
+}
+
+package "LLM Summarizer (llm-summarizer.ts)" {
+    class LLMSummarizer {
+        -googleAI: GoogleGenerativeAI | null
+        -openAI: OpenAI | null
+        -initialized: boolean
+        -initializeClients(): void
+        +summarizeBatch(batch): Promise<FileSummary[]>
+        -summarizeWithGoogle(batch): Promise<FileSummary[]>
+        -summarizeWithOpenAI(batch): Promise<FileSummary[]>
+        -buildPrompt(batch): string
+        -calculateConfidence(summary): number
+    }
+}
+
+package "Digest Builder (digest-builder.ts)" {
+    class DigestBuilder {
+        +generateDigest(summaries, time): Digest
+        +renderDigestMarkdown(digest): string
+        +writeDigest(digest, path): Promise<void>
+        -renderFileSummary(summary): string
+        -extractTopInsights(summaries, count): string[]
+    }
+}
+
+package "Evaluator (evaluator.ts)" {
+    class Evaluator {
+        +evaluateDigest(digest, files): EvaluationResult
+        -calculateSourceLinkedScore(digest): number
+        -calculateCoverageScore(digest, files): number
+        -calculateConfidenceScore(digest): number
+    }
+}
+
+package "CLI (cli.ts)" {
+    class CLI {
+        +runTextDigest(options): Promise<void>
+        -program: Command
+    }
+}
+
+' Relationships
+FileDiscovery --> FileMetadata : produces
+ContentProcessor --> FileMetadata : consumes
+ContentProcessor --> FileContent : produces
+ContentProcessor --> Batch : creates
+LLMSummarizer --> Batch : consumes
+LLMSummarizer --> FileSummary : produces
+DigestBuilder --> FileSummary : consumes
+DigestBuilder --> Digest : produces
+Evaluator --> Digest : consumes
+Evaluator --> EvaluationResult : produces
+CLI --> FileDiscovery : uses
+CLI --> ContentProcessor : uses
+CLI --> LLMSummarizer : uses
+CLI --> DigestBuilder : uses
+CLI --> Evaluator : uses
+
+note top of FileMetadata
+  **Validation:**
+  • path: Non-empty, must exist
+  • size: ≤ 10MB (10485760 bytes)
+  • modifiedAt: Within last N days
+end note
+
+note top of FileSummary
+  **Quality Requirements:**
+  • confidence: ≥ 0.75
+  • keyFacts: Must have [source: path:line]
+  • insights: Must have [source: path]
+end note
+
+note right of CLI
+  **Orchestration Flow:**
+  1. discoverFiles()
+  2. extractContents()
+  3. createBatches()
+  4. processBatchesInParallel(summarizeBatch)
+  5. generateDigest()
+  6. writeDigest()
+  7. evaluateDigest()
+end note
+
+@enduml

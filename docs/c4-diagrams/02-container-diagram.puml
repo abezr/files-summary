@@ -1,0 +1,56 @@
+@startuml C4_Container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Container Diagram for TextDigest
+
+Person(user, "Developer/Analyst", "Runs TextDigest to analyze project files")
+
+System_Boundary(textdigest_boundary, "TextDigest System") {
+    Container(cli, "CLI Interface", "Node.js/Commander", "Parses arguments, orchestrates workflow")
+    Container(file_discovery, "File Discovery", "TypeScript", "Scans folders, filters by date and type")
+    Container(content_processor, "Content Processor", "TypeScript", "Reads files, creates batches for parallel processing")
+    Container(llm_summarizer, "LLM Summarizer", "TypeScript", "Calls Google Gemini or OpenAI to generate summaries")
+    Container(digest_builder, "Digest Builder", "TypeScript", "Generates Markdown output with source links")
+    Container(evaluator, "Quality Evaluator", "TypeScript", "Validates digest against quality thresholds")
+    ContainerDb(logs, "Structured Logs", "JSON", "Observability for MCP integration")
+}
+
+System_Ext(gemini, "Google Gemini API", "Primary LLM")
+System_Ext(openai, "OpenAI API", "Fallback LLM")
+System_Ext(filesystem, "File System", "Local text files")
+
+Rel(user, cli, "Executes command", "CLI")
+Rel(cli, file_discovery, "Triggers file scan")
+Rel(file_discovery, filesystem, "Reads file metadata", "fs.stat()")
+Rel(cli, content_processor, "Passes discovered files")
+Rel(content_processor, filesystem, "Reads file content", "fs.readFile()")
+Rel(content_processor, llm_summarizer, "Sends batches")
+Rel(llm_summarizer, gemini, "POST /generate", "HTTPS/JSON")
+Rel(llm_summarizer, openai, "POST /chat/completions", "HTTPS/JSON (fallback)")
+Rel(llm_summarizer, cli, "Returns summaries")
+Rel(cli, digest_builder, "Passes summaries")
+Rel(digest_builder, filesystem, "Writes digest.md", "fs.writeFile()")
+Rel(cli, evaluator, "Validates quality")
+Rel(evaluator, logs, "Writes metrics", "JSON")
+Rel(digest_builder, user, "Delivers digest.md")
+
+note right of llm_summarizer
+  **Fallback Strategy:**
+  1. Try Google Gemini (primary)
+  2. On failure, try OpenAI (fallback)
+  3. Throw error if both fail
+  
+  **Lazy Initialization:**
+  API clients initialized on first use
+end note
+
+note right of content_processor
+  **Batch Configuration:**
+  • 20 files per batch
+  • Max 3 concurrent batches
+  • UTF-8 with latin1 fallback
+end note
+
+@enduml

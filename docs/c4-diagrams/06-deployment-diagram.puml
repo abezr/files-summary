@@ -1,0 +1,82 @@
+@startuml Deployment_Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Deployment Diagram for TextDigest
+
+Deployment_Node(dev_machine, "Developer Machine", "Windows/Mac/Linux") {
+    Deployment_Node(docker_env, "Docker Environment", "Docker 20+") {
+        Container(textdigest_container, "TextDigest Container", "Node 20 Alpine", "Runs CLI tool in isolated environment")
+    }
+    
+    Deployment_Node(local_env, "Local Environment", "Node.js 20+") {
+        Container(textdigest_local, "TextDigest CLI", "Node.js/TypeScript", "Direct execution without Docker")
+    }
+    
+    Deployment_Node(filesystem, "File System", "Local Storage") {
+        ContainerDb(input_files, "Input Files", "./data/", "Text files to analyze (.txt, .md, .log)")
+        ContainerDb(output_files, "Output Files", "./output/", "Generated digest.md and logs")
+    }
+}
+
+Deployment_Node(cloud_gemini, "Google Cloud", "Cloud Platform") {
+    System_Ext(gemini_api, "Gemini API", "gemini-2.0-flash-exp\nUS Region")
+}
+
+Deployment_Node(cloud_openai, "OpenAI Cloud", "Cloud Platform") {
+    System_Ext(openai_api, "OpenAI API", "gpt-4o-mini\nGlobal")
+}
+
+Rel(textdigest_container, input_files, "Reads", "Volume mount\n-v ./data:/data:ro")
+Rel(textdigest_container, output_files, "Writes", "Volume mount\n-v ./output:/output")
+Rel(textdigest_container, gemini_api, "HTTPS", "POST /generateContent\nAPI Key Auth")
+Rel(textdigest_container, openai_api, "HTTPS (fallback)", "POST /chat/completions\nAPI Key Auth")
+
+Rel(textdigest_local, input_files, "Reads", "fs.readFile()")
+Rel(textdigest_local, output_files, "Writes", "fs.writeFile()")
+Rel(textdigest_local, gemini_api, "HTTPS", "POST /generateContent")
+Rel(textdigest_local, openai_api, "HTTPS (fallback)", "POST /chat/completions")
+
+note right of textdigest_container
+  **Docker Deployment:**
+  1. Build: docker-compose build
+  2. Configure: export GOOGLE_API_KEY=...
+  3. Run: docker-compose up
+  4. Output: ./output/digest.md
+  
+  **Image Size:** ~200MB (Alpine-based)
+  **Memory:** <512MB typical
+end note
+
+note right of textdigest_local
+  **Local Deployment:**
+  1. Install: npm install
+  2. Build: npm run build
+  3. Configure: export GOOGLE_API_KEY=...
+  4. Run: node dist/cli.js --folder ./data
+  
+  **Requirements:**
+  • Node.js 20+
+  • TypeScript 5.7+
+end note
+
+note left of gemini_api
+  **Primary LLM:**
+  • Model: gemini-2.0-flash-exp
+  • Context: 1M tokens
+  • Latency: 2-3s per batch
+  • Cost: $0.075 per 1M tokens (input)
+  • Rate Limit: 10 req/min (free tier)
+end note
+
+note left of openai_api
+  **Fallback LLM:**
+  • Model: gpt-4o-mini
+  • Context: 128K tokens
+  • Latency: 3-5s per batch
+  • Cost: $0.15 per 1M tokens (input)
+  • Rate Limit: 500 req/min
+end note
+
+@enduml

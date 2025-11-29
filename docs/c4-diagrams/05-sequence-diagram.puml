@@ -1,0 +1,128 @@
+@startuml Sequence_Diagram
+!theme plain
+skinparam sequenceMessageAlign center
+
+title TextDigest - Complete Processing Sequence
+
+actor User
+participant "CLI" as CLI
+participant "FileDiscovery" as FD
+participant "ContentProcessor" as CP
+participant "LLMSummarizer" as LLM
+participant "Google Gemini" as Gemini
+participant "OpenAI" as OpenAI
+participant "DigestBuilder" as DB
+participant "Evaluator" as EVAL
+participant "FileSystem" as FS
+
+User -> CLI: node cli.js --folder ./logs --days 6
+activate CLI
+
+CLI -> FD: discoverFiles("./logs", 6)
+activate FD
+FD -> FS: glob("**/*.{txt,md,log}")
+FD -> FS: stat(each file)
+FD --> CLI: FileMetadata[] (sorted by date)
+deactivate FD
+
+CLI -> CP: extractContents(FileMetadata[])
+activate CP
+loop For each file
+    CP -> FS: readFile(path, 'utf-8')
+    alt UTF-8 success
+        FS --> CP: content
+    else UTF-8 fails
+        CP -> FS: readFile(path, 'latin1')
+        FS --> CP: content (fallback)
+    end
+end
+CP --> CLI: FileContent[]
+deactivate CP
+
+CLI -> CP: createBatches(FileContent[], 20)
+activate CP
+CP --> CLI: Batch<FileContent>[] (20 files each)
+deactivate CP
+
+CLI -> CP: processBatchesInParallel(batches, summarizeBatch, 3)
+activate CP
+
+par Process 3 batches concurrently
+    CP -> LLM: summarizeBatch(batch1)
+    activate LLM
+    LLM -> LLM: initializeClients() [lazy]
+    LLM -> LLM: buildPrompt(batch1)
+    
+    alt Google Gemini available
+        LLM -> Gemini: POST /generateContent\n{prompt, files}
+        activate Gemini
+        Gemini --> LLM: JSON response\n{summaries[]}
+        deactivate Gemini
+        LLM -> LLM: calculateConfidence()
+        LLM --> CP: FileSummary[]
+    else Google fails
+        LLM -> OpenAI: POST /chat/completions\n{prompt, files}
+        activate OpenAI
+        OpenAI --> LLM: JSON response\n{summaries[]}
+        deactivate OpenAI
+        LLM -> LLM: calculateConfidence()
+        LLM --> CP: FileSummary[] (fallback)
+    end
+    deactivate LLM
+    
+    CP -> LLM: summarizeBatch(batch2)
+    activate LLM
+    LLM -> Gemini: POST /generateContent
+    Gemini --> LLM: JSON response
+    LLM --> CP: FileSummary[]
+    deactivate LLM
+    
+    CP -> LLM: summarizeBatch(batch3)
+    activate LLM
+    LLM -> Gemini: POST /generateContent
+    Gemini --> LLM: JSON response
+    LLM --> CP: FileSummary[]
+    deactivate LLM
+end
+
+CP --> CLI: FileSummary[] (all batches merged)
+deactivate CP
+
+CLI -> DB: generateDigest(FileSummary[], processingTime)
+activate DB
+DB -> DB: Group by file type\n(txt, md, log)
+DB -> DB: extractTopInsights(10)
+DB -> DB: Calculate statistics
+DB --> CLI: Digest
+deactivate DB
+
+CLI -> DB: writeDigest(Digest, "./output/digest.md")
+activate DB
+DB -> FS: writeFile("digest.md", markdown)
+DB --> CLI: Success
+deactivate DB
+
+CLI -> EVAL: evaluateDigest(Digest, FileMetadata[])
+activate EVAL
+EVAL -> EVAL: calculateSourceLinkedScore()
+note right: Count facts with [source:] tags
+EVAL -> EVAL: calculateCoverageScore()
+note right: Count files cited in digest
+EVAL -> EVAL: calculateConfidenceScore()
+note right: Average confidence scores
+EVAL -> EVAL: Compare against thresholds:\n• sourceLinked ≥ 90%\n• coverage ≥ 80%\n• confidence ≥ 75%
+EVAL --> CLI: EvaluationResult\n{passed, scores, issues}
+deactivate EVAL
+
+CLI -> User: Display results:\n✅ Digest generated\n📊 Quality metrics\n📄 Output: digest.md
+deactivate CLI
+
+note over User, FS
+  **Performance:**
+  • 300 files = 15 batches
+  • 3 concurrent = 5 rounds
+  • ~5s per round = 25s LLM time
+  • +20s overhead = ~45s total
+end note
+
+@enduml

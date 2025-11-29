@@ -1,0 +1,64 @@
+@startuml C4_Component
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_TOP_DOWN()
+
+title Component Diagram for TextDigest - LLM Summarizer Container
+
+Container_Boundary(llm_summarizer_boundary, "LLM Summarizer Container") {
+    Component(summarize_batch, "summarizeBatch()", "Main Entry Point", "Coordinates summarization with fallback logic")
+    Component(google_summarizer, "summarizeWithGoogle()", "Google Integration", "Calls Google Gemini API")
+    Component(openai_summarizer, "summarizeWithOpenAI()", "OpenAI Integration", "Calls OpenAI GPT API")
+    Component(prompt_builder, "buildPrompt()", "Prompt Engineering", "Constructs structured prompt with source enforcement")
+    Component(confidence_calc, "calculateConfidence()", "Quality Metric", "Computes % of facts with [source:] tags")
+    Component(google_client, "GoogleGenerativeAI", "SDK", "Google Gemini API client")
+    Component(openai_client, "OpenAI", "SDK", "OpenAI API client")
+    Component(logger, "Logger", "Observability", "Structured JSON logging")
+}
+
+System_Ext(gemini_api, "Google Gemini API", "gemini-2.0-flash-exp")
+System_Ext(openai_api, "OpenAI API", "gpt-4o-mini")
+
+Rel(summarize_batch, google_summarizer, "Calls (primary)")
+Rel(summarize_batch, openai_summarizer, "Calls (fallback)")
+Rel(google_summarizer, prompt_builder, "Uses")
+Rel(openai_summarizer, prompt_builder, "Uses")
+Rel(google_summarizer, google_client, "Uses")
+Rel(openai_summarizer, openai_client, "Uses")
+Rel(google_client, gemini_api, "POST /generateContent", "HTTPS")
+Rel(openai_client, openai_api, "POST /chat/completions", "HTTPS")
+Rel(google_summarizer, confidence_calc, "Calculates")
+Rel(openai_summarizer, confidence_calc, "Calculates")
+Rel(summarize_batch, logger, "Logs events")
+Rel(google_summarizer, logger, "Logs requests/responses")
+Rel(openai_summarizer, logger, "Logs requests/responses")
+
+note right of prompt_builder
+  **Prompt Template:**
+  • Files with metadata
+  • Required output format (JSON)
+  • CRITICAL rules:
+    - Every fact MUST have [source: path:line]
+    - Every insight MUST have [source: path]
+    - Max 500 chars per summary
+    - Extract all numbers/dates
+end note
+
+note right of summarize_batch
+  **Execution Flow:**
+  1. Initialize clients (lazy)
+  2. Try google_summarizer
+  3. On error, try openai_summarizer
+  4. Calculate confidence scores
+  5. Return FileSummary[]
+end note
+
+note left of confidence_calc
+  **Calculation:**
+  linkedItems / totalItems
+  
+  Where linkedItems = facts + insights
+  with /\[source:/ regex match
+end note
+
+@enduml

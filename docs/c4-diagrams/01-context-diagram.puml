@@ -1,0 +1,32 @@
+@startuml C4_Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title System Context Diagram for TextDigest
+
+Person(user, "Developer/Analyst", "Needs to understand recent changes in project files")
+
+System(textdigest, "TextDigest System", "Automatically generates digestable summaries of recent text files with LLM-powered insights and full source traceability")
+
+System_Ext(gemini, "Google Gemini API", "Primary LLM for text summarization (gemini-2.0-flash-exp)")
+System_Ext(openai, "OpenAI API", "Fallback LLM for text summarization (gpt-4o-mini)")
+System_Ext(filesystem, "File System", "Local storage containing text files (.txt, .md, .log)")
+
+Rel(user, textdigest, "Runs CLI command", "CLI/Docker")
+Rel(textdigest, filesystem, "Reads text files", "File I/O")
+Rel(textdigest, gemini, "Requests summaries", "HTTPS/REST")
+Rel(textdigest, openai, "Requests summaries (fallback)", "HTTPS/REST")
+Rel(textdigest, user, "Generates digest.md", "Markdown file")
+
+note right of textdigest
+  **Key Features:**
+  • Scans folders recursively
+  • Filters by date (last N days)
+  • Batch processing (20 files/batch)
+  • Parallel LLM calls (3 concurrent)
+  • Quality evaluation (90%+ source linking)
+  • One-command Docker deployment
+end note
+
+@enduml
