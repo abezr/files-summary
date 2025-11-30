@@ -47,13 +47,14 @@ ${item.content.slice(0, 50000)}${item.content.length > 50000 ? '\n... (truncated
     .join('\n\n');
 
   return `You are a technical analyst summarizing recent project files.
+You can analyze files in ANY LANGUAGE including English, Ukrainian (Українська), and others.
 
 # Files to Analyze (Batch ${batch.id}):
 ${fileContents}
 
 # Your Task:
 For EACH file, provide:
-1. **Summary** (2-3 sentences): What is this file about?
+1. **Summary** (2-3 sentences): What is this file about? Use the same language as the file.
 2. **Key Facts** (3-5 bullets): Concrete statements from the file. MUST include [source: filename:line] tags.
 3. **Insights** (1-2 bullets): Interesting patterns or implications. MUST include [source: filename] tags.
 4. **Statistics** (if any): Extract numbers (dates, counts, metrics)
@@ -80,7 +81,8 @@ For EACH file, provide:
 - Extract ALL numbers/dates you find
 - Focus on WHAT changed, not technical jargon
 - If file is empty/unreadable, say "No content"
-- Output ONLY valid JSON, no markdown formatting`;
+- Output ONLY valid JSON, no markdown formatting
+- LANGUAGE: Respond in the same language as the input file (English, Ukrainian, etc.)`;
 }
 
 /**
@@ -287,6 +289,7 @@ export async function generateConclusions(
   const unusualFactsText = facts.unusual.slice(0, 10).map(f => f.text).join('\n');
   
   const prompt = `You are a strategic analyst reviewing a comprehensive digest of ${summaries.length} files.
+You can work with content in ANY LANGUAGE including English, Ukrainian (Українська), and others.
 
 # Context:
 
@@ -311,12 +314,14 @@ Generate a strategic analysis with:
    - Identify systemic issues or trends
    - Connect disparate insights
    - Each conclusion should be evidence-based
+   - Write in the same language as the majority of the input
 
 2. **Recommendations** (3-5 actionable recommendations):
    - Specific actions based on conclusions
    - Prioritized by impact
    - Actionable and concrete
    - Each with supporting evidence
+   - Write in the same language as the majority of the input
 
 3. **Evidence** (supporting facts):
    - Key facts that support your conclusions
@@ -343,7 +348,8 @@ Generate a strategic analysis with:
 - Connect dots across files
 - Prioritize actionable insights
 - Cite evidence with [source: ...] tags
-- Output ONLY valid JSON`;
+- Output ONLY valid JSON
+- LANGUAGE: Use the same language as the input content (English, Ukrainian, etc.)`;
 
   try {
     let response: any;
