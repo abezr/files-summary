@@ -397,6 +397,7 @@ All functions include semantic markup for LLM maintainability:
 
 ### Quick Reference
 - 🚀 [**Quick Start Guide**](docs/QUICKSTART.md) - Get started in 5 minutes
+- 🇺🇦 [**Ukrainian Support**](docs/UKRAINIAN_SUPPORT.md) - **Ukrainian language ingestion guide**
 - 📋 [**Version History**](docs/VERSION.md) - Detailed changelog and release notes
 - 📦 [**Implementation Summary**](docs/IMPLEMENTATION_SUMMARY.md) - Technical implementation details
 - 🤝 [**Handoff Guide**](docs/HANDOFF.md) - Project handoff and v2.1 roadmap
