@@ -6,8 +6,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files (ensure package-lock.json is included)
+COPY package.json package-lock.json ./
 
 # Install ALL dependencies (including dev dependencies for building)
 RUN npm ci
@@ -25,8 +25,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files (ensure package-lock.json is included)
+COPY package.json package-lock.json ./
 
 # Install only production dependencies
 RUN npm ci --omit=dev && npm cache clean --force
