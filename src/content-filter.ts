@@ -98,7 +98,9 @@ export function filterLawContent(
   
   // Match legal terms (case-insensitive)
   for (const term of cfg.legalTerms) {
-    const pattern = new RegExp(`\\b${term.toLowerCase()}\\b`, 'g');
+    // Escape special regex characters in the term
+    const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`\\b${escapedTerm}\\b`, 'gi');
     const matches = content.match(pattern);
     if (matches && matches.length > 0) {
       matchedTerms.push(term);
