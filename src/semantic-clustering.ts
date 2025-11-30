@@ -11,11 +11,30 @@
  * @version 2.1
  */
 
-import { kmeans } from 'ml-kmeans';
+// Import ml-kmeans (has proper ES6 exports)
+import * as mlKmeans from 'ml-kmeans';
 import type { GraphNode, EntityCluster, Logger } from './types.js';
 
-// Simple stopword removal (fallback)
-const commonStopwords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those']);
+// Extract kmeans function from namespace
+const kmeans = (mlKmeans as any).kmeans || mlKmeans;
+
+// Multi-language stopwords (English + Ukrainian)
+const commonStopwords = new Set([
+  // English stopwords
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 
+  'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 
+  'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 
+  'these', 'those', 'from', 'by', 'as', 'it', 'its', 'which', 'who', 'when', 'where',
+  // Ukrainian stopwords
+  'і', 'в', 'у', 'на', 'з', 'до', 'від', 'за', 'про', 'це', 'по', 'під', 'над', 'та',
+  'або', 'але', 'як', 'що', 'який', 'який', 'яка', 'яке', 'які', 'цей', 'ця', 'це',
+  'ці', 'той', 'та', 'те', 'ті', 'він', 'вона', 'воно', 'вони', 'мій', 'моя', 'моє',
+  'мої', 'твій', 'твоя', 'твоє', 'твої', 'його', 'її', 'їх', 'наш', 'наша', 'наше',
+  'наші', 'ваш', 'ваша', 'ваше', 'ваші', 'бути', 'був', 'була', 'було', 'були',
+  'буду', 'будеш', 'буде', 'будемо', 'будете', 'будуть', 'є', 'був', 'мати', 'має',
+  'мають', 'можу', 'може', 'можуть', 'треба', 'потрібно', 'для', 'при', 'без',
+  'через', 'між', 'перед', 'після', 'під', 'над', 'серед', 'коло', 'біля'
+]);
 
 function removeStopwords(words: string[]): string[] {
   return words.filter(w => !commonStopwords.has(w.toLowerCase()));
