@@ -1,0 +1,82 @@
+# Docker Compose configuration for TextDigest v2.1 with advanced features
+# Usage: docker-compose -f docker-compose.v2.1.yml up
+
+services:
+  textdigest:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: textdigest:2.1.0
+    container_name: textdigest-v2.1-cli
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_MODEL=${GOOGLE_MODEL:-gemini-2.0-flash-exp}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./data:/data:ro              # Mount input folder (read-only)
+      - ./output:/output              # Mount output folder
+    command: 
+      - "--folder"
+      - "/data"
+      - "--days"
+      - "6"
+      - "--output"
+      - "/output/digest.md"
+      - "--include-conclusions"      # v2.1: Generate LLM conclusions
+      # - "--no-exclude-law"          # v2.1: Include law content (uncomment if needed)
+    restart: "no"
+
+  # Example: Large batch processing with Knowledge Graph
+  textdigest-large:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: textdigest:2.1.0
+    container_name: textdigest-large-batch
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./large-data:/data:ro        # Mount large dataset
+      - ./output:/output
+    command: 
+      - "--folder"
+      - "/data"
+      - "--days"
+      - "30"
+      - "--output"
+      - "/output/digest-large.md"
+      - "--include-conclusions"
+    restart: "no"
+    profiles:
+      - large-batch
+
+  # Example: Legal documents analysis (no law filtering)
+  textdigest-legal:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: textdigest:2.1.0
+    container_name: textdigest-legal
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./legal-docs:/data:ro        # Mount legal documents
+      - ./output:/output
+    command: 
+      - "--folder"
+      - "/data"
+      - "--days"
+      - "7"
+      - "--output"
+      - "/output/legal-digest.md"
+      - "--no-exclude-law"           # Include law content
+      - "--include-conclusions"
+    restart: "no"
+    profiles:
+      - legal

@@ -1,15 +1,24 @@
-version: '3.8'
-
 services:
   textdigest:
-    build: .
-    image: textdigest:latest
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: textdigest:2.1.0
     container_name: textdigest-cli
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_MODEL=${GOOGLE_MODEL:-gemini-2.0-flash-exp}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./data:/data:ro              # Mount input folder (read-only)
       - ./output:/output              # Mount output folder
-    command: ["--folder", "/data", "--days", "6", "--output", "/output/digest.md"]
+    command: 
+      - "--folder"
+      - "/data"
+      - "--days"
+      - "6"
+      - "--output"
+      - "/output/digest.md"
+    restart: "no"
