@@ -12,8 +12,12 @@
  * @version 2.1
  */
 
-import { TfIdf } from 'natural';
+// Import natural as default (CommonJS module)
+import natural from 'natural';
 import type { FileSummary, AnalyzedFact, Logger } from './types.js';
+
+// Extract TfIdf from natural package
+const { TfIdf } = natural;
 
 // Simple stopword removal (fallback)
 const commonStopwords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those']);
